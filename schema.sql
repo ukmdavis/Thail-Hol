@@ -10,6 +10,7 @@ create table holidays (
   return_date date not null,
   is_secret boolean default false,
   reveal_at timestamptz,
+  lead_days integer default 45,   -- how many days before departure the timeline starts
   created_at timestamptz default now()
 );
 

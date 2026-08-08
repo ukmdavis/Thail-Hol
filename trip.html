@@ -199,6 +199,10 @@ function toggleEditTripForm(trip) {
       <div><label>Depart date</label><input id="et-depart" type="date" value="${trip.depart_date || ""}" /></div>
       <div><label>Return date</label><input id="et-return" type="date" value="${trip.return_date || ""}" /></div>
     </div>
+    <label>Start planning from</label>
+    <select id="et-lead">
+      ${[7,14,21,30,45,60,90].map(d => `<option value="${d}" ${(trip.lead_days ?? 45) === d ? "selected" : ""}>${d} days before departure</option>`).join("")}
+    </select>
     <label style="display:flex; align-items:center; gap:8px; margin-top:14px;">
       <input type="checkbox" id="et-secret" ${trip.is_secret ? "checked" : ""} style="width:auto;" />
       This is a surprise (hide from main page until reveal date)
@@ -225,6 +229,7 @@ function toggleEditTripForm(trip) {
       destination: document.getElementById("et-destination").value.trim(),
       depart_date: document.getElementById("et-depart").value,
       return_date: document.getElementById("et-return").value,
+      lead_days: parseInt(document.getElementById("et-lead").value, 10),
       is_secret,
       reveal_at,
     });
@@ -447,12 +452,14 @@ async function loadTimeline(trip) {
   const today = new Date(); today.setHours(0,0,0,0);
   const depart = new Date(trip.depart_date);
   const returnD = new Date(trip.return_date);
+  const leadDays = trip.lead_days ?? 45;
 
-  // Start from today (or a few days back for context if the trip's underway),
-  // but don't go further back than ~45 days before departure for a future trip.
+  // Start from today, but never further back than this trip's own
+  // planning window (lead_days) before departure.
   let start = new Date(Math.min(today.getTime(), depart.getTime()));
-  const spanBeforeDepart = daysBetween(start, depart);
-  if (spanBeforeDepart > 45) start = new Date(depart.getTime() - 45 * 86400000);
+  if (daysBetween(start, depart) > leadDays) {
+    start = new Date(depart.getTime() - leadDays * 86400000);
+  }
 
   const end = returnD >= start ? returnD : start; // always show at least through return date
   const todayStr = today.toISOString().split("T")[0];
