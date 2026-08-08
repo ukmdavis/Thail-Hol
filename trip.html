@@ -58,9 +58,23 @@ function openTextModal(title, current) {
 }
 
 function cleanText(text) {
-  // Strip stray leading/trailing whitespace and collapse accidental blank
-  // lines (common when pasting a link or address).
-  return text.trim().replace(/\n{2,}/g, "\n").replace(/[ \t]+\n/g, "\n");
+  return (text || "")
+    .replace(/\r\n?/g, "\n")            // normalize Windows/old-Mac line endings to \n
+    .split("\n")
+    .map(line => line.trim())           // strip leading/trailing spaces on each line
+    .join("\n")
+    .replace(/\n{2,}/g, "\n")           // collapse any run of blank lines to one
+    .trim();
+}
+
+function escapeHtml(str) {
+  return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Applied at render time so even old notes saved before the cleanup fix
+// always display compactly, without needing to re-save them.
+function displayText(text) {
+  return escapeHtml(cleanText(text || ""));
 }
 
 function isAdmin() {
@@ -462,18 +476,9 @@ async function loadTimeline(trip) {
     let itemsHtml = "";
     dayItems.forEach(item => {
       if (item.type === "task") {
-        itemsHtml += `
-          <div class="item-row ${item.done ? "done" : ""}">
-            <input type="checkbox" ${item.done ? "checked" : ""} class="task-toggle" data-id="${item.id}" />
-            <span class="item-text" data-id="${item.id}" data-current="${item.text.replace(/"/g,'&quot;')}">${item.text}</span>
-            <button class="ghost item-delete" data-id="${item.id}">✕</button>
-          </div>`;
+        itemsHtml += `<div class="item-row ${item.done ? "done" : ""}"><input type="checkbox" ${item.done ? "checked" : ""} class="task-toggle" data-id="${item.id}" /><span class="item-text" data-id="${item.id}" data-current="${cleanText(item.text).replace(/"/g,'&quot;')}">${displayText(item.text)}</span><button class="ghost item-delete" data-id="${item.id}">✕</button></div>`;
       } else {
-        itemsHtml += `
-          <div class="note-block" data-id="${item.id}" data-current="${item.text.replace(/"/g,'&quot;')}">
-            ${item.text}
-            <div style="text-align:right; margin-top:4px;"><button class="ghost item-delete" data-id="${item.id}" style="font-size:11px;">Remove</button></div>
-          </div>`;
+        itemsHtml += `<div class="note-block" data-id="${item.id}" data-current="${cleanText(item.text).replace(/"/g,'&quot;')}"><span class="note-text">${displayText(item.text)}</span><button class="ghost item-delete" data-id="${item.id}">✕</button></div>`;
       }
     });
     card.innerHTML = `
