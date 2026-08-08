@@ -44,6 +44,10 @@
   </div>
 
   <div class="trip-list" id="tripList"></div>
+
+  <p style="margin-top: 2rem; text-align: center;">
+    <a href="admin.html" style="font-size: 13px; color: var(--text-secondary);">Manage hidden / surprise trips</a>
+  </p>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -91,7 +95,9 @@ saveBtn.onclick = async () => {
 async function loadTrips() {
   tripList.innerHTML = "<p class='empty'>Loading...</p>";
   try {
-    const trips = await HolidayData.listHolidays();
+    const allTrips = await HolidayData.listHolidays();
+    const now = new Date();
+    const trips = allTrips.filter(t => !(t.is_secret && t.reveal_at && now < new Date(t.reveal_at)));
     if (trips.length === 0) {
       tripList.innerHTML = "<p class='empty'>No holidays yet. Add your first one above.</p>";
       return;

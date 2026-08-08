@@ -50,6 +50,11 @@ const HolidayData = {
     if (error) throw error;
   },
 
+  async updateFlight(id, flight) {
+    const { error } = await supabaseClient.from("flights").update(flight).eq("id", id);
+    if (error) throw error;
+  },
+
   async deleteFlight(id) {
     const { error } = await supabaseClient.from("flights").delete().eq("id", id);
     if (error) throw error;
@@ -67,6 +72,11 @@ const HolidayData = {
 
   async addStay(stay) {
     const { error } = await supabaseClient.from("stays").insert(stay);
+    if (error) throw error;
+  },
+
+  async updateStay(id, stay) {
+    const { error } = await supabaseClient.from("stays").update(stay).eq("id", id);
     if (error) throw error;
   },
 
@@ -95,8 +105,18 @@ const HolidayData = {
     if (error) throw error;
   },
 
+  async updateDayItemText(id, text) {
+    const { error } = await supabaseClient.from("day_items").update({ text }).eq("id", id);
+    if (error) throw error;
+  },
+
   async deleteDayItem(id) {
     const { error } = await supabaseClient.from("day_items").delete().eq("id", id);
+    if (error) throw error;
+  },
+
+  async updateHoliday(id, fields) {
+    const { error } = await supabaseClient.from("holidays").update(fields).eq("id", id);
     if (error) throw error;
   },
 };

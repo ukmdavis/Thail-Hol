@@ -45,10 +45,20 @@ reveal date — built for the Germany birthday trip.
 
 - **Home page** — add a holiday with name, destination, and dates. Tick
   "This is a surprise" to lock the trip page behind a countdown to a reveal
-  date/time you choose — perfect for a birthday reveal.
-- **Trip page** — add flights and accommodation, and use the day-by-day
-  timeline (running from today up to departure) to add tasks (checkable)
-  or notes for any day.
+  date/time you choose. Surprise trips **don't appear on the home page at
+  all** until their reveal date has passed.
+- **Trip page** — add flights and accommodation (click **Edit** on any card
+  to change details), and use the day-by-day timeline to add tasks
+  (checkable) or notes. The timeline covers both the run-up to departure
+  *and* the days of the holiday itself, so you can plan ahead for what
+  you'll do while you're away too. Click any task or note's text to edit it.
+- **Editing a trip's own details** (name, dates, surprise settings) — click
+  **Edit** on the card at the top of its trip page.
+- **Managing a hidden surprise trip before it's revealed** — go to
+  `admin.html` from the link at the bottom of the home page, enter your
+  passcode (set in `js/config.js` as `ADMIN_PASSCODE`), and you'll see
+  every trip including hidden ones, with links that let you view and edit
+  them early without triggering the reveal for anyone else.
 
 ## Notes on security
 
