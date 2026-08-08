@@ -462,27 +462,33 @@ async function loadTimeline(trip) {
       const id = el.dataset.id;
       const current = el.dataset.current;
       const text = prompt("Edit:", current);
-      if (text === null || text === "") return;
-      await HolidayData.updateDayItemText(id, text);
+      if (text === null || text.trim() === "") return;
+      await HolidayData.updateDayItemText(id, cleanText(text));
       loadTimeline(trip);
     };
   });
   wrap.querySelectorAll(".add-task").forEach(btn => {
     btn.onclick = async () => {
       const text = prompt("Task:");
-      if (!text) return;
-      await HolidayData.addDayItem({ holiday_id: trip.id, item_date: btn.dataset.date, type: "task", text });
+      if (!text || !text.trim()) return;
+      await HolidayData.addDayItem({ holiday_id: trip.id, item_date: btn.dataset.date, type: "task", text: cleanText(text) });
       loadTimeline(trip);
     };
   });
   wrap.querySelectorAll(".add-note").forEach(btn => {
     btn.onclick = async () => {
       const text = prompt("Note:");
-      if (!text) return;
-      await HolidayData.addDayItem({ holiday_id: trip.id, item_date: btn.dataset.date, type: "note", text });
+      if (!text || !text.trim()) return;
+      await HolidayData.addDayItem({ holiday_id: trip.id, item_date: btn.dataset.date, type: "note", text: cleanText(text) });
       loadTimeline(trip);
     };
   });
+}
+
+function cleanText(text) {
+  // Strip stray leading/trailing whitespace and collapse accidental blank
+  // lines (common when pasting a link or address into the prompt box).
+  return text.trim().replace(/\n{2,}/g, "\n").replace(/[ \t]+\n/g, "\n");
 }
 
 main();
