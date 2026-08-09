@@ -110,6 +110,11 @@ const HolidayData = {
     if (error) throw error;
   },
 
+  async updateDayItem(id, fields) {
+    const { error } = await supabaseClient.from("day_items").update(fields).eq("id", id);
+    if (error) throw error;
+  },
+
   async deleteDayItem(id) {
     const { error } = await supabaseClient.from("day_items").delete().eq("id", id);
     if (error) throw error;
@@ -154,9 +159,14 @@ const HolidayData = {
     if (error) throw error;
   },
 
-  photoUrl(storagePath) {
-    const { data } = supabaseClient.storage.from("trip-photos").getPublicUrl(storagePath);
-    return data.publicUrl;
+  // The bucket is private, so we generate short-lived signed URLs.
+  async photoUrl(storagePath) {
+    const { data, error } = await supabaseClient
+      .storage
+      .from("trip-photos")
+      .createSignedUrl(storagePath, 60 * 60); // valid for 1 hour
+    if (error) throw error;
+    return data.signedUrl;
   },
 };
 

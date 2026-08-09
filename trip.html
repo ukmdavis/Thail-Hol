@@ -8,7 +8,10 @@
 </head>
 <body>
 <div class="wrap">
-  <a class="back-link" href="index.html">&larr; All holidays</a>
+  <div class="field-row" style="margin-bottom:1rem;">
+    <a class="back-link" href="index.html" style="margin-bottom:0;">&larr; All holidays</a>
+    <span id="authControl"></span>
+  </div>
   <div id="content"><p class="empty">Loading...</p></div>
 </div>
 
@@ -16,6 +19,10 @@
   <div class="modal-box">
     <h3 id="modalTitle">Note</h3>
     <textarea id="modalInput" rows="4"></textarea>
+    <div id="modalDateWrap" style="display:none;">
+      <label>Assign to a day</label>
+      <select id="modalDate"></select>
+    </div>
     <div class="row" style="margin-top:12px; justify-content:flex-end;">
       <button id="modalCancel">Cancel</button>
       <button class="primary" id="modalSave">Save</button>
@@ -25,18 +32,30 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/data.js"></script>
 <script>
 const params = new URLSearchParams(location.search);
 const tripId = params.get("id");
 const content = document.getElementById("content");
 
-function openTextModal(title, current) {
+function openTextModal(title, current, dateOptions, currentDate) {
   return new Promise(resolve => {
     const overlay = document.getElementById("textModal");
     const input = document.getElementById("modalInput");
+    const dateWrap = document.getElementById("modalDateWrap");
+    const dateSel = document.getElementById("modalDate");
     document.getElementById("modalTitle").textContent = title;
     input.value = current || "";
+
+    if (dateOptions) {
+      dateWrap.style.display = "block";
+      dateSel.innerHTML = `<option value="">Keep in Ideas (no day)</option>` +
+        dateOptions.map(d => `<option value="${d}" ${d === currentDate ? "selected" : ""}>${formatDate(d, { weekday: "short", day: "numeric", month: "short" })}</option>`).join("");
+    } else {
+      dateWrap.style.display = "none";
+    }
+
     overlay.style.display = "flex";
     setTimeout(() => input.focus(), 0);
 
@@ -51,7 +70,7 @@ function openTextModal(title, current) {
       resolve(value);
     }
 
-    saveBtn.onclick = () => finish(input.value);
+    saveBtn.onclick = () => finish({ text: input.value, date: dateOptions ? (dateSel.value || null) : undefined });
     cancelBtn.onclick = () => finish(null);
     overlay.onclick = (e) => { if (e.target === overlay) finish(null); };
   });
@@ -77,18 +96,6 @@ function displayText(text) {
   return escapeHtml(cleanText(text || ""));
 }
 
-function isAdmin() {
-  if (sessionStorage.getItem("hp_admin") === "1") return true;
-  if (params.get("admin") === "1") {
-    const val = prompt("Enter passcode to view/edit this trip early:");
-    if (val === ADMIN_PASSCODE) {
-      sessionStorage.setItem("hp_admin", "1");
-      return true;
-    }
-  }
-  return false;
-}
-
 async function main() {
   if (!tripId) { content.innerHTML = "<p class='empty'>No trip specified.</p>"; return; }
 
@@ -100,14 +107,13 @@ async function main() {
     return;
   }
 
-  const admin = params.get("admin") === "1" ? isAdmin() : false;
-
-  if (trip.is_secret && trip.reveal_at && new Date() < new Date(trip.reveal_at) && !admin) {
+  const hiddenTrip = trip.is_secret && trip.reveal_at && new Date() < new Date(trip.reveal_at);
+  if (hiddenTrip && !Auth.isOrganiser()) {
     renderLockScreen(trip);
     return;
   }
 
-  renderTrip(trip, admin);
+  renderTrip(trip, hiddenTrip);
 }
 
 function renderLockScreen(trip) {
@@ -134,10 +140,10 @@ function renderLockScreen(trip) {
   setInterval(tick, 60000);
 }
 
-async function renderTrip(trip, admin) {
+async function renderTrip(trip, hiddenTrip) {
   const daysUntil = daysBetween(new Date(), trip.depart_date);
   content.innerHTML = `
-    ${admin ? `<div class="badge" style="margin-bottom:10px; display:inline-block;">Admin view — viewing early</div>` : ""}
+    ${hiddenTrip ? `<div class="badge" style="margin-bottom:10px; display:inline-block;">Not yet revealed — organiser view</div>` : ""}
     <div class="card" id="headerCard">
       <div class="row" style="justify-content:space-between; align-items:start;">
         <div>
@@ -146,7 +152,7 @@ async function renderTrip(trip, admin) {
           <p style="color:var(--text-secondary); font-size:13px; margin-top:6px;">${formatDate(trip.depart_date)} — ${formatDate(trip.return_date)}</p>
           ${trip.is_secret ? `<p style="font-size:13px; margin-top:6px;"><span class="badge">Surprise</span> reveals ${new Date(trip.reveal_at).toLocaleString("en-GB")}</p>` : ""}
         </div>
-        <div class="row">
+        <div class="row requires-edit">
           <button id="editTripBtn">Edit</button>
           <button class="danger" id="deleteTripBtn">Delete</button>
         </div>
@@ -157,16 +163,16 @@ async function renderTrip(trip, admin) {
 
     <div class="section-title">Flights</div>
     <div id="flightsList"></div>
-    <button id="addFlightBtn">+ Add flight</button>
+    <button id="addFlightBtn" class="requires-edit">+ Add flight</button>
     <div class="card" id="flightForm" style="display:none; margin-top:10px;"></div>
 
     <div class="section-title">Accommodation</div>
     <div id="staysList"></div>
-    <button id="addStayBtn">+ Add stay</button>
+    <button id="addStayBtn" class="requires-edit">+ Add stay</button>
     <div class="card" id="stayForm" style="display:none; margin-top:10px;"></div>
 
     <div class="section-title">Photos</div>
-    <div class="card">
+    <div class="card requires-edit">
       <label>Add a photo</label>
       <input type="file" id="photoInput" accept="image/*" multiple />
       <label>Caption (optional)</label>
@@ -178,25 +184,35 @@ async function renderTrip(trip, admin) {
     </div>
     <div id="photoGrid"></div>
 
+    <div class="section-title">Ideas — not yet scheduled</div>
+    <div class="card">
+      <div id="ideasList"></div>
+      <div class="row requires-edit" style="margin-top:8px;">
+        <button id="addIdeaBtn">+ Add idea</button>
+      </div>
+    </div>
+
     <div class="section-title">Day by day — tasks &amp; notes</div>
     <p class="empty" style="margin-bottom:10px;">Covers the run-up to departure and the trip itself, so you can plan ahead for both.</p>
     <div id="dayTimeline"></div>
   `;
 
-  document.getElementById("deleteTripBtn").onclick = async () => {
-    if (!confirm("Delete this holiday and everything in it?")) return;
-    await HolidayData.deleteHoliday(trip.id);
-    location.href = "index.html";
-  };
-
-  document.getElementById("editTripBtn").onclick = () => toggleEditTripForm(trip);
-  document.getElementById("addFlightBtn").onclick = () => toggleFlightForm(trip.id);
-  document.getElementById("addStayBtn").onclick = () => toggleStayForm(trip.id);
-  document.getElementById("uploadPhotoBtn").onclick = () => handleUpload(trip.id);
+  if (Auth.canEdit()) {
+    document.getElementById("deleteTripBtn").onclick = async () => {
+      if (!confirm("Delete this holiday and everything in it?")) return;
+      await HolidayData.deleteHoliday(trip.id);
+      location.href = "index.html";
+    };
+    document.getElementById("editTripBtn").onclick = () => toggleEditTripForm(trip);
+    document.getElementById("addFlightBtn").onclick = () => toggleFlightForm(trip.id);
+    document.getElementById("addStayBtn").onclick = () => toggleStayForm(trip.id);
+    document.getElementById("uploadPhotoBtn").onclick = () => handleUpload(trip.id);
+  }
 
   await loadFlights(trip.id);
   await loadStays(trip.id);
   await loadPhotos(trip.id);
+  await loadIdeas(trip);
   await loadTimeline(trip);
 }
 
@@ -241,11 +257,16 @@ async function loadPhotos(tripId) {
 
   grid.className = "photo-grid";
   grid.innerHTML = "";
-  photos.forEach(p => {
-    const url = HolidayData.photoUrl(p.storage_path);
+  for (const p of photos) {
+    let url;
+    try {
+      url = await HolidayData.photoUrl(p.storage_path);
+    } catch (e) {
+      continue; // skip any photo we can't get a link for
+    }
     const tile = document.createElement("div");
     tile.className = "photo-tile";
-    tile.innerHTML = `<img src="${url}" alt="${(p.caption || "Trip photo").replace(/"/g,'&quot;')}" loading="lazy" /><button class="photo-del">✕</button>${p.caption ? `<div class="photo-caption">${escapeHtml(p.caption)}</div>` : ""}`;
+    tile.innerHTML = `<img src="${url}" alt="${(p.caption || "Trip photo").replace(/"/g,'&quot;')}" loading="lazy" /><button class="photo-del requires-edit">✕</button>${p.caption ? `<div class="photo-caption">${escapeHtml(p.caption)}</div>` : ""}`;
     tile.querySelector("img").onclick = () => window.open(url, "_blank");
     tile.querySelector(".photo-del").onclick = async (e) => {
       e.stopPropagation();
@@ -254,7 +275,7 @@ async function loadPhotos(tripId) {
       loadPhotos(tripId);
     };
     grid.appendChild(tile);
-  });
+  }
 }
 
 function toggleEditTripForm(trip) {
@@ -369,7 +390,7 @@ async function loadFlights(tripId) {
           <p style="font-size:13px; color:var(--text-secondary); margin-top:4px;">${formatDateTime(f.depart_at)} → ${formatDateTime(f.arrive_at)}</p>
           ${f.notes ? `<p style="font-size:13px; margin-top:4px;">${f.notes}</p>` : ""}
         </div>
-        <div class="row" style="flex-shrink:0;">
+        <div class="row requires-edit" style="flex-shrink:0;">
           <button class="edit-btn">Edit</button>
           <button class="ghost del-btn">✕</button>
         </div>
@@ -472,7 +493,7 @@ async function loadStays(tripId) {
           <p style="font-size:13px; color:var(--text-secondary); margin-top:4px;">${formatDate(s.checkin)} — ${formatDate(s.checkout)}</p>
           ${s.notes ? `<p style="font-size:13px; margin-top:4px;">${s.notes}</p>` : ""}
         </div>
-        <div class="row" style="flex-shrink:0;">
+        <div class="row requires-edit" style="flex-shrink:0;">
           <button class="edit-btn">Edit</button>
           <button class="ghost del-btn">✕</button>
         </div>
@@ -516,11 +537,7 @@ function toggleStayEdit(card, s, tripId) {
   };
 }
 
-// ---------- Day by day timeline (covers run-up AND the holiday itself) ----------
-async function loadTimeline(trip) {
-  const wrap = document.getElementById("dayTimeline");
-  const items = await HolidayData.listDayItems(trip.id);
-
+function getTripDays(trip) {
   const today = new Date(); today.setHours(0,0,0,0);
   const depart = new Date(trip.depart_date);
   const returnD = new Date(trip.return_date);
@@ -534,15 +551,71 @@ async function loadTimeline(trip) {
   }
 
   const end = returnD >= start ? returnD : start; // always show at least through return date
-  const todayStr = today.toISOString().split("T")[0];
-  const departStr = trip.depart_date;
-
   const days = [];
   let cursor = new Date(start);
   while (cursor <= end) {
     days.push(cursor.toISOString().split("T")[0]);
     cursor.setDate(cursor.getDate() + 1);
   }
+  return days;
+}
+
+// ---------- Ideas (items with no date assigned) ----------
+async function loadIdeas(trip) {
+  const list = document.getElementById("ideasList");
+  const items = await HolidayData.listDayItems(trip.id);
+  const ideas = items.filter(i => !i.item_date);
+
+  if (ideas.length === 0) {
+    list.innerHTML = "<p class='empty'>Nothing here yet. Add things you'd like to do but haven't scheduled.</p>";
+  } else {
+    list.innerHTML = "";
+    ideas.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "item-row";
+      row.innerHTML = `<span class="item-text">${displayText(item.text)}</span><button class="ghost item-delete requires-edit">✕</button>`;
+      row.querySelector(".item-text").onclick = async () => {
+        if (!Auth.canEdit()) return;
+        const result = await openTextModal("Edit idea", cleanText(item.text), getTripDays(trip), null);
+        if (result === null || !result.text.trim()) return;
+        await HolidayData.updateDayItem(item.id, {
+          text: cleanText(result.text),
+          item_date: result.date || null,
+        });
+        await loadIdeas(trip);
+        await loadTimeline(trip);
+      };
+      row.querySelector(".item-delete").onclick = async () => {
+        await HolidayData.deleteDayItem(item.id);
+        loadIdeas(trip);
+      };
+      list.appendChild(row);
+    });
+  }
+
+  document.getElementById("addIdeaBtn").onclick = async () => {
+    if (!Auth.canEdit()) return;
+    const result = await openTextModal("New idea", "");
+    if (result === null || !result.text.trim()) return;
+    await HolidayData.addDayItem({
+      holiday_id: trip.id,
+      item_date: null,
+      type: "task",
+      text: cleanText(result.text),
+    });
+    loadIdeas(trip);
+  };
+}
+
+// ---------- Day by day timeline (covers run-up AND the holiday itself) ----------
+async function loadTimeline(trip) {
+  const wrap = document.getElementById("dayTimeline");
+  const items = await HolidayData.listDayItems(trip.id);
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().split("T")[0];
+  const departStr = trip.depart_date;
+  const days = getTripDays(trip);
 
   wrap.innerHTML = "";
   days.forEach(dateStr => {
@@ -552,12 +625,13 @@ async function loadTimeline(trip) {
     const onTrip = dateStr >= departStr;
     const card = document.createElement("div");
     card.className = "card day-card" + (isToday ? " today" : "");
+    card.dataset.date = dateStr;
     let itemsHtml = "";
     dayItems.forEach(item => {
       if (item.type === "task") {
-        itemsHtml += `<div class="item-row ${item.done ? "done" : ""}"><input type="checkbox" ${item.done ? "checked" : ""} class="task-toggle" data-id="${item.id}" /><span class="item-text" data-id="${item.id}" data-current="${cleanText(item.text).replace(/"/g,'&quot;')}">${displayText(item.text)}</span><button class="ghost item-delete" data-id="${item.id}">✕</button></div>`;
+        itemsHtml += `<div class="item-row ${item.done ? "done" : ""}"><input type="checkbox" ${item.done ? "checked" : ""} ${Auth.canEdit() ? "" : "disabled"} class="task-toggle" data-id="${item.id}" /><span class="item-text" data-id="${item.id}" data-current="${cleanText(item.text).replace(/"/g,'&quot;')}">${displayText(item.text)}</span><button class="ghost item-delete requires-edit" data-id="${item.id}">✕</button></div>`;
       } else {
-        itemsHtml += `<div class="note-block" data-id="${item.id}" data-current="${cleanText(item.text).replace(/"/g,'&quot;')}"><span class="note-text">${displayText(item.text)}</span><button class="ghost item-delete" data-id="${item.id}">✕</button></div>`;
+        itemsHtml += `<div class="note-block" data-id="${item.id}" data-current="${cleanText(item.text).replace(/"/g,'&quot;')}"><span class="note-text">${displayText(item.text)}</span><button class="ghost item-delete requires-edit" data-id="${item.id}">✕</button></div>`;
       }
     });
     card.innerHTML = `
@@ -570,8 +644,8 @@ async function loadTimeline(trip) {
       </div>
       <div style="margin-top:8px;">${itemsHtml}</div>
       <div class="row" style="margin-top:8px;">
-        <button class="add-task" data-date="${dateStr}">+ Task</button>
-        <button class="add-note" data-date="${dateStr}">+ Note</button>
+        <button class="add-task requires-edit" data-date="${dateStr}">+ Task</button>
+        <button class="add-note requires-edit" data-date="${dateStr}">+ Note</button>
       </div>
     `;
     wrap.appendChild(card);
@@ -585,34 +659,44 @@ async function loadTimeline(trip) {
   });
   wrap.querySelectorAll(".item-text, .note-block").forEach(el => {
     el.onclick = async (e) => {
+      if (!Auth.canEdit()) return;
       if (e.target.tagName === "BUTTON") return;
       const id = el.dataset.id;
       const current = el.dataset.current;
-      const text = await openTextModal("Edit", current);
-      if (text === null || text.trim() === "") return;
-      await HolidayData.updateDayItemText(id, cleanText(text));
-      loadTimeline(trip);
+      const currentDate = el.closest(".day-card").dataset.date;
+      const result = await openTextModal("Edit", current, getTripDays(trip), currentDate);
+      if (result === null || !result.text.trim()) return;
+      await HolidayData.updateDayItem(id, {
+        text: cleanText(result.text),
+        item_date: result.date || null,
+      });
+      await loadIdeas(trip);
+      await loadTimeline(trip);
     };
   });
   wrap.querySelectorAll(".add-task").forEach(btn => {
     btn.onclick = async () => {
-      const text = await openTextModal("New task", "");
-      if (!text || !text.trim()) return;
-      await HolidayData.addDayItem({ holiday_id: trip.id, item_date: btn.dataset.date, type: "task", text: cleanText(text) });
+      const result = await openTextModal("New task", "");
+      if (result === null || !result.text.trim()) return;
+      await HolidayData.addDayItem({ holiday_id: trip.id, item_date: btn.dataset.date, type: "task", text: cleanText(result.text) });
       loadTimeline(trip);
     };
   });
   wrap.querySelectorAll(".add-note").forEach(btn => {
     btn.onclick = async () => {
-      const text = await openTextModal("New note", "");
-      if (!text || !text.trim()) return;
-      await HolidayData.addDayItem({ holiday_id: trip.id, item_date: btn.dataset.date, type: "note", text: cleanText(text) });
+      const result = await openTextModal("New note", "");
+      if (result === null || !result.text.trim()) return;
+      await HolidayData.addDayItem({ holiday_id: trip.id, item_date: btn.dataset.date, type: "note", text: cleanText(result.text) });
       loadTimeline(trip);
     };
   });
 }
 
-main();
+(async () => {
+  if (!await Auth.requireAuth()) return;
+  Auth.renderControl(document.getElementById("authControl"));
+  main();
+})();
 </script>
 </body>
 </html>

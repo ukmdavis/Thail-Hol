@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign in — Holiday Planner</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="wrap" style="max-width:420px;">
+  <div class="card" style="margin-top:3rem;">
+    <h1 style="margin-bottom:6px;">Holiday planner</h1>
+    <p style="color:var(--text-secondary); font-size:13px; margin-bottom:1rem;">
+      Enter your email and we'll send you a sign-in link. No password needed.
+    </p>
+
+    <div id="formArea">
+      <label>Email address</label>
+      <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+      <button class="primary" id="sendBtn" style="width:100%; margin-top:12px;">Send sign-in link</button>
+      <p id="msg" class="empty" style="margin-top:10px;"></p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+const emailEl = document.getElementById("email");
+const sendBtn = document.getElementById("sendBtn");
+const msg = document.getElementById("msg");
+
+// If they're already signed in, go straight through.
+(async () => {
+  const session = await Auth.init();
+  if (session) location.href = "index.html";
+})();
+
+async function send() {
+  const email = emailEl.value.trim();
+  if (!email || !email.includes("@")) { msg.textContent = "Please enter a valid email address."; return; }
+
+  sendBtn.disabled = true;
+  msg.textContent = "Sending...";
+  try {
+    await Auth.sendMagicLink(email);
+    document.getElementById("formArea").innerHTML = `
+      <p style="font-size:14px;">Check your inbox — we've sent a sign-in link to <strong>${email}</strong>.</p>
+      <p class="empty" style="margin-top:8px;">The link opens the planner directly. It may take a minute to arrive, and can land in spam.</p>
+    `;
+  } catch (e) {
+    msg.textContent = "Couldn't send: " + e.message;
+    sendBtn.disabled = false;
+  }
+}
+
+sendBtn.onclick = send;
+emailEl.onkeydown = (e) => { if (e.key === "Enter") send(); };
+</script>
+</body>
+</html>

@@ -54,19 +54,75 @@ reveal date — built for the Germany birthday trip.
   you'll do while you're away too. Click any task or note's text to edit it.
 - **Editing a trip's own details** (name, dates, surprise settings) — click
   **Edit** on the card at the top of its trip page.
-- **Managing a hidden surprise trip before it's revealed** — go to
-  `admin.html` from the link at the bottom of the home page, enter your
-  passcode (set in `js/config.js` as `ADMIN_PASSCODE`), and you'll see
-  every trip including hidden ones, with links that let you view and edit
-  them early without triggering the reveal for anyone else.
+- **Managing a surprise trip before it's revealed** — organisers see hidden
+  trips on the home page as normal, and can also use the "Manage Trips &
+  People" link at the bottom to see everything in one place.
+
+## Accounts and permissions
+
+The app uses Supabase Auth with passwordless email sign-in. Everyone gets a
+link by email, clicks it, and they're in — no passwords to manage.
+
+Three roles, stored in the database and enforced by row-level security
+rules (not just hidden in the interface):
+
+| Role | Can do |
+|---|---|
+| **View only** | Read everything except unrevealed surprise trips |
+| **Can edit** | Add, edit and delete everything |
+| **Organiser** | As above, plus sees surprise trips early and sets everyone's role |
+
+New sign-ups default to **View only**. As organiser you promote people from
+the **Manage Trips & People** page.
+
+### Setting this up
+
+1. In Supabase, go to **Authentication → Providers** and make sure **Email**
+   is enabled with magic links.
+2. Go to **Authentication → URL Configuration** and set the **Site URL** to
+   your GitHub Pages address (e.g. `https://ukmdavis.github.io/Amazing-Holiday/`).
+   Add the same URL under **Redirect URLs**. Sign-in links won't work
+   without this.
+3. Run `migration-auth.sql` in the SQL Editor.
+4. Switch the photo bucket to private: **Storage → trip-photos → Settings**,
+   untick **Public bucket**.
+5. Deploy the new files, open your site, and sign in with your own email.
+6. Back in the SQL Editor, make yourself organiser:
+   ```sql
+   update profiles set role = 'organiser' where email = 'you@example.com';
+   ```
+7. Reload. You can now set everyone else's role from the interface — no
+   more SQL needed.
+
+Then just share the site link. Anyone who wants access signs in with their
+email; you approve what they can do.
 
 ## Notes on security
 
-The Supabase anon key is visible in your public code, and the database
-policies currently allow anyone with the link to read and write. That's
-fine for a private link you only share with family, but don't post the
-GitHub Pages URL publicly. If you want a passcode gate later, that's a
-quick addition — just ask.
+This setup is properly enforced server-side: the database checks who you
+are on every read and write, so someone can't bypass the rules by editing
+the page in their browser. Unrevealed surprise trips genuinely aren't
+sent to non-organisers.
+
+Two things still worth knowing:
+
+- Anyone with the link can *create an account*. They land as View only and
+  see trips, so treat the link as semi-private rather than public. If you'd
+  rather lock that down, Supabase lets you disable open sign-ups and invite
+  people individually from **Authentication → Users**.
+- Photos are served via time-limited signed links rather than public URLs,
+  so they can't be shared outside the app indefinitely.
+
+## Ideas list (one-time setup)
+
+Run `migration-ideas.sql` once in Supabase → SQL Editor. This lets items
+exist without a date.
+
+Each trip page then has an **Ideas — not yet scheduled** section: a place
+for things you'd like to do but haven't pinned to a day. Click any idea to
+edit it, and use the "Assign to a day" dropdown to move it onto the
+timeline. The same dropdown appears when editing an item already on a day,
+so you can move it to a different day or send it back to Ideas.
 
 ## Adding photos (one-time setup)
 

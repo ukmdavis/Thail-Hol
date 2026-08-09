@@ -40,7 +40,7 @@ create table stays (
 create table day_items (
   id uuid primary key default gen_random_uuid(),
   holiday_id uuid references holidays(id) on delete cascade,
-  item_date date not null,
+  item_date date,              -- null = sits in the general "Ideas" list
   type text check (type in ('task','note')) not null,
   text text not null,
   done boolean default false,

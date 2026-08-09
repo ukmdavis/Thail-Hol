@@ -10,7 +10,10 @@
 <div class="wrap">
   <header class="top">
     <h1>Holiday planner</h1>
-    <button class="primary" id="showFormBtn">+ Add holiday</button>
+    <div class="row" style="align-items:center;">
+      <span id="authControl"></span>
+      <button class="primary requires-edit" id="showFormBtn">+ Add holiday</button>
+    </div>
   </header>
 
   <div class="card" id="addForm" style="display:none;">
@@ -56,12 +59,13 @@
   <div class="trip-list" id="tripList"></div>
 
   <p style="margin-top: 2rem; text-align: center;">
-    <a href="admin.html" style="font-size: 13px; color: var(--text-secondary);">Manage Trips</a>
+    <a href="admin.html" class="organiser-only" style="font-size: 13px; color: var(--text-secondary);">Manage Trips &amp; People</a>
   </p>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/data.js"></script>
 <script>
 const showFormBtn = document.getElementById("showFormBtn");
@@ -108,7 +112,9 @@ async function loadTrips() {
   try {
     const allTrips = await HolidayData.listHolidays();
     const now = new Date();
-    const trips = allTrips.filter(t => !(t.is_secret && t.reveal_at && now < new Date(t.reveal_at)));
+    const trips = allTrips.filter(t =>
+      Auth.isOrganiser() || !(t.is_secret && t.reveal_at && now < new Date(t.reveal_at))
+    );
     if (trips.length === 0) {
       tripList.innerHTML = "<p class='empty'>No holidays yet. Add your first one above.</p>";
       return;
@@ -135,7 +141,11 @@ async function loadTrips() {
   }
 }
 
-loadTrips();
+(async () => {
+  if (!await Auth.requireAuth()) return;
+  Auth.renderControl(document.getElementById("authControl"));
+  loadTrips();
+})();
 </script>
 </body>
 </html>

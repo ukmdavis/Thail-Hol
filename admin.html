@@ -8,52 +8,48 @@
 </head>
 <body>
 <div class="wrap">
-  <a class="back-link" href="index.html">&larr; All holidays</a>
+  <div class="field-row" style="margin-bottom:1rem;">
+    <a class="back-link" href="index.html" style="margin-bottom:0;">&larr; All holidays</a>
+    <span id="authControl"></span>
+  </div>
   <div id="content"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/data.js"></script>
 <script>
 const content = document.getElementById("content");
 
-function askPasscode() {
-  content.innerHTML = `
-    <div class="card">
-      <h2>Enter passcode</h2>
-      <p style="color:var(--text-secondary); font-size:13px; margin-bottom:10px;">Enter your passcode to manage trips.</p>
-      <input id="pass" type="password" placeholder="Passcode" />
-      <button class="primary" id="passBtn" style="margin-top:10px;">Enter</button>
-    </div>
-  `;
-  document.getElementById("passBtn").onclick = () => {
-    const val = document.getElementById("pass").value;
-    if (val === ADMIN_PASSCODE) {
-      sessionStorage.setItem("hp_admin", "1");
-      loadAll();
-    } else {
-      alert("Incorrect passcode.");
-    }
-  };
-}
-
 async function loadAll() {
   content.innerHTML = "<p class='empty'>Loading...</p>";
+
+  if (!Auth.isOrganiser()) {
+    content.innerHTML = "<div class='card'><h2>Not available</h2><p style='color:var(--text-secondary); font-size:13px; margin-top:6px;'>This page is only available to trip organisers.</p></div>";
+    return;
+  }
+
+  content.innerHTML = "<h1 style='margin-bottom:1rem;'>All trips</h1><div id='tripsArea'></div>" +
+    "<div class='section-title'>People</div><p class='empty' style='margin-bottom:10px;'>Anyone who signs in appears here. Set what each person can do.</p><div id='peopleArea'></div>";
+
+  await loadTrips();
+  await loadPeople();
+}
+
+async function loadTrips() {
+  const area = document.getElementById("tripsArea");
   try {
     const trips = await HolidayData.listHolidays();
-    if (trips.length === 0) {
-      content.innerHTML = "<p class='empty'>No holidays yet.</p>";
-      return;
-    }
-    content.innerHTML = "<h1 style='margin-bottom:1rem;'>All trips</h1>";
+    if (trips.length === 0) { area.innerHTML = "<p class='empty'>No holidays yet.</p>"; return; }
+    area.innerHTML = "";
     trips.forEach(t => {
       const now = new Date();
       const hidden = t.is_secret && t.reveal_at && now < new Date(t.reveal_at);
       const el = document.createElement("a");
       el.className = "trip-link";
       el.style.marginBottom = "10px";
-      el.href = `trip.html?id=${t.id}&admin=1`;
+      el.href = `trip.html?id=${t.id}`;
       el.innerHTML = `
         <div class="row" style="justify-content:space-between; align-items:center;">
           <h3>${t.name}</h3>
@@ -63,18 +59,58 @@ async function loadAll() {
         <div class="dates">${formatDate(t.depart_date)} — ${formatDate(t.return_date)}</div>
         ${t.reveal_at ? `<div class="dates" style="margin-top:4px;">Reveals: ${new Date(t.reveal_at).toLocaleString("en-GB")}</div>` : ""}
       `;
-      content.appendChild(el);
+      area.appendChild(el);
     });
   } catch (e) {
-    content.innerHTML = `<p class='empty'>Couldn't load trips: ${e.message}</p>`;
+    area.innerHTML = `<p class='empty'>Couldn't load trips: ${e.message}</p>`;
   }
 }
 
-if (sessionStorage.getItem("hp_admin") === "1") {
-  loadAll();
-} else {
-  askPasscode();
+async function loadPeople() {
+  const area = document.getElementById("peopleArea");
+  try {
+    const people = await Auth.listProfiles();
+    area.innerHTML = "";
+    people.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "card";
+      const isMe = p.id === Auth.session.user.id;
+      card.innerHTML = `
+        <div class="field-row">
+          <div>
+            <h3 style="font-size:14px;">${p.email || "(no email)"}${isMe ? " — you" : ""}</h3>
+            <p class="empty" style="font-size:12px;">Joined ${formatDate(p.created_at)}</p>
+          </div>
+          <select class="role-select" style="width:auto;" ${isMe ? "disabled" : ""}>
+            <option value="viewer" ${p.role === "viewer" ? "selected" : ""}>View only</option>
+            <option value="editor" ${p.role === "editor" ? "selected" : ""}>Can edit</option>
+            <option value="organiser" ${p.role === "organiser" ? "selected" : ""}>Organiser</option>
+          </select>
+        </div>
+      `;
+      const sel = card.querySelector(".role-select");
+      if (!isMe) {
+        sel.onchange = async () => {
+          try {
+            await Auth.setRole(p.id, sel.value);
+          } catch (e) {
+            alert("Couldn't change role: " + e.message);
+            loadPeople();
+          }
+        };
+      }
+      area.appendChild(card);
+    });
+  } catch (e) {
+    area.innerHTML = `<p class='empty'>Couldn't load people: ${e.message}</p>`;
+  }
 }
+
+(async () => {
+  if (!await Auth.requireAuth()) return;
+  Auth.renderControl(document.getElementById("authControl"));
+  loadAll();
+})();
 </script>
 </body>
 </html>

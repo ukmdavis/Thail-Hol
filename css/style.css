@@ -187,6 +187,12 @@ button.ghost { background: transparent; border: none; padding: 4px 6px; }
 
 .empty { color: var(--text-secondary); font-size: 13px; padding: 8px 0; }
 
+body.readonly .requires-edit { display: none !important; }
+body:not(.organiser) .organiser-only { display: none !important; }
+body.readonly .item-text,
+body.readonly .note-block { cursor: default; }
+body.readonly .item-text:hover { text-decoration: none; }
+
 .back-link { display: inline-block; margin-bottom: 1rem; font-size: 13px; }
 
 .modal-overlay {
