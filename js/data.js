@@ -119,6 +119,45 @@ const HolidayData = {
     const { error } = await supabaseClient.from("holidays").update(fields).eq("id", id);
     if (error) throw error;
   },
+
+  // ---------- Photos ----------
+  async listPhotos(holidayId) {
+    const { data, error } = await supabaseClient
+      .from("photos")
+      .select("*")
+      .eq("holiday_id", holidayId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  async uploadPhoto(holidayId, file, caption) {
+    // Give every file a unique name so uploads never clash.
+    const ext = file.name.split(".").pop().toLowerCase();
+    const path = `${holidayId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const { error: upErr } = await supabaseClient
+      .storage
+      .from("trip-photos")
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+    if (upErr) throw upErr;
+
+    const { error } = await supabaseClient
+      .from("photos")
+      .insert({ holiday_id: holidayId, storage_path: path, caption: caption || null });
+    if (error) throw error;
+  },
+
+  async deletePhoto(photo) {
+    await supabaseClient.storage.from("trip-photos").remove([photo.storage_path]);
+    const { error } = await supabaseClient.from("photos").delete().eq("id", photo.id);
+    if (error) throw error;
+  },
+
+  photoUrl(storagePath) {
+    const { data } = supabaseClient.storage.from("trip-photos").getPublicUrl(storagePath);
+    return data.publicUrl;
+  },
 };
 
 function formatDate(dateStr, opts) {

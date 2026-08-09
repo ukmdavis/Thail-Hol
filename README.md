@@ -68,6 +68,21 @@ fine for a private link you only share with family, but don't post the
 GitHub Pages URL publicly. If you want a passcode gate later, that's a
 quick addition — just ask.
 
+## Adding photos (one-time setup)
+
+1. In Supabase, go to **Storage → New bucket**.
+2. Name it exactly `trip-photos` and tick **Public bucket**. Create it.
+3. Go to **SQL Editor → New query**, paste in `migration-photos.sql` from
+   this repo, and Run. This creates the `photos` table and the upload
+   permissions.
+
+After that, each trip page has a **Photos** section: choose one or more
+images, add an optional caption, and hit Upload. Click any photo to open
+it full size, or the ✕ to delete it. Photos are stored per trip.
+
+Free tier gives you 1GB of storage, which is roughly 300–1000 phone photos
+depending on size. Uploads are capped at 10MB per image.
+
 ## Extending it
 
 This is intentionally simple so you can keep building on it. Ideas:

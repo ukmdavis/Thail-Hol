@@ -165,6 +165,19 @@ async function renderTrip(trip, admin) {
     <button id="addStayBtn">+ Add stay</button>
     <div class="card" id="stayForm" style="display:none; margin-top:10px;"></div>
 
+    <div class="section-title">Photos</div>
+    <div class="card">
+      <label>Add a photo</label>
+      <input type="file" id="photoInput" accept="image/*" multiple />
+      <label>Caption (optional)</label>
+      <input type="text" id="photoCaption" placeholder="e.g. Sunset at Hua Hin beach" />
+      <div class="row" style="margin-top:12px; align-items:center;">
+        <button class="primary" id="uploadPhotoBtn">Upload</button>
+        <span id="uploadStatus" class="empty"></span>
+      </div>
+    </div>
+    <div id="photoGrid"></div>
+
     <div class="section-title">Day by day — tasks &amp; notes</div>
     <p class="empty" style="margin-bottom:10px;">Covers the run-up to departure and the trip itself, so you can plan ahead for both.</p>
     <div id="dayTimeline"></div>
@@ -179,10 +192,69 @@ async function renderTrip(trip, admin) {
   document.getElementById("editTripBtn").onclick = () => toggleEditTripForm(trip);
   document.getElementById("addFlightBtn").onclick = () => toggleFlightForm(trip.id);
   document.getElementById("addStayBtn").onclick = () => toggleStayForm(trip.id);
+  document.getElementById("uploadPhotoBtn").onclick = () => handleUpload(trip.id);
 
   await loadFlights(trip.id);
   await loadStays(trip.id);
+  await loadPhotos(trip.id);
   await loadTimeline(trip);
+}
+
+// ---------- Photos ----------
+async function handleUpload(tripId) {
+  const input = document.getElementById("photoInput");
+  const captionEl = document.getElementById("photoCaption");
+  const status = document.getElementById("uploadStatus");
+  const files = Array.from(input.files || []);
+
+  if (files.length === 0) { alert("Choose a photo first."); return; }
+
+  const tooBig = files.find(f => f.size > 10 * 1024 * 1024);
+  if (tooBig) { alert(`"${tooBig.name}" is larger than 10MB. Please pick a smaller image.`); return; }
+
+  try {
+    for (let i = 0; i < files.length; i++) {
+      status.textContent = `Uploading ${i + 1} of ${files.length}...`;
+      await HolidayData.uploadPhoto(tripId, files[i], captionEl.value);
+    }
+    status.textContent = "Done.";
+    input.value = "";
+    captionEl.value = "";
+    await loadPhotos(tripId);
+    setTimeout(() => { status.textContent = ""; }, 2000);
+  } catch (e) {
+    status.textContent = "";
+    alert("Upload failed: " + e.message);
+  }
+}
+
+async function loadPhotos(tripId) {
+  const grid = document.getElementById("photoGrid");
+  let photos;
+  try {
+    photos = await HolidayData.listPhotos(tripId);
+  } catch (e) {
+    grid.innerHTML = `<p class='empty'>Couldn't load photos: ${e.message}</p>`;
+    return;
+  }
+  if (photos.length === 0) { grid.innerHTML = "<p class='empty'>No photos yet.</p>"; return; }
+
+  grid.className = "photo-grid";
+  grid.innerHTML = "";
+  photos.forEach(p => {
+    const url = HolidayData.photoUrl(p.storage_path);
+    const tile = document.createElement("div");
+    tile.className = "photo-tile";
+    tile.innerHTML = `<img src="${url}" alt="${(p.caption || "Trip photo").replace(/"/g,'&quot;')}" loading="lazy" /><button class="photo-del">✕</button>${p.caption ? `<div class="photo-caption">${escapeHtml(p.caption)}</div>` : ""}`;
+    tile.querySelector("img").onclick = () => window.open(url, "_blank");
+    tile.querySelector(".photo-del").onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm("Delete this photo?")) return;
+      await HolidayData.deletePhoto(p);
+      loadPhotos(tripId);
+    };
+    grid.appendChild(tile);
+  });
 }
 
 function toggleEditTripForm(trip) {
