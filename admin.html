@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Manage hidden trips</title>
+<title>Manage Trips</title>
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -22,7 +22,7 @@ function askPasscode() {
   content.innerHTML = `
     <div class="card">
       <h2>Enter passcode</h2>
-      <p style="color:var(--text-secondary); font-size:13px; margin-bottom:10px;">This page manages trips hidden from the main page.</p>
+      <p style="color:var(--text-secondary); font-size:13px; margin-bottom:10px;">Enter your passcode to manage trips.</p>
       <input id="pass" type="password" placeholder="Passcode" />
       <button class="primary" id="passBtn" style="margin-top:10px;">Enter</button>
     </div>
@@ -46,7 +46,7 @@ async function loadAll() {
       content.innerHTML = "<p class='empty'>No holidays yet.</p>";
       return;
     }
-    content.innerHTML = "<h1 style='margin-bottom:1rem;'>All trips (including hidden)</h1>";
+    content.innerHTML = "<h1 style='margin-bottom:1rem;'>All trips</h1>";
     trips.forEach(t => {
       const now = new Date();
       const hidden = t.is_secret && t.reveal_at && now < new Date(t.reveal_at);
