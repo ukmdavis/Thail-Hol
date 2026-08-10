@@ -46,10 +46,22 @@ const Auth = {
 
   // Sends a one-time sign-in link to the given email address.
   async sendMagicLink(email) {
-    const redirectTo = location.origin + location.pathname.replace(/[^/]*$/, "") + "index.html";
     const { error } = await supabaseClient.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: redirectTo },
+      options: { emailRedirectTo: this.redirectUrl() },
+    });
+    if (error) throw error;
+  },
+
+  redirectUrl() {
+    return location.origin + location.pathname.replace(/[^/]*$/, "") + "index.html";
+  },
+
+  // Sign in with an OAuth provider (currently Google).
+  async signInWithProvider(provider) {
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: this.redirectUrl() },
     });
     if (error) throw error;
   },

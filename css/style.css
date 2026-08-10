@@ -193,6 +193,39 @@ body.readonly .item-text,
 body.readonly .note-block { cursor: default; }
 body.readonly .item-text:hover { text-decoration: none; }
 
+.oauth-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 11px 14px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+.oauth-btn:hover { background: var(--bg); border-color: var(--border); }
+.oauth-btn svg { flex-shrink: 0; }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 1.25rem 0 1rem;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.divider::before, .divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 .back-link { display: inline-block; margin-bottom: 1rem; font-size: 13px; }
 
 .modal-overlay {

@@ -60,8 +60,8 @@ reveal date — built for the Germany birthday trip.
 
 ## Accounts and permissions
 
-The app uses Supabase Auth with passwordless email sign-in. Everyone gets a
-link by email, clicks it, and they're in — no passwords to manage.
+People sign in with **Google** or a passwordless email link — whichever
+they prefer. No passwords to manage either way.
 
 Three roles, stored in the database and enforced by row-level security
 rules (not just hidden in the interface):
@@ -77,8 +77,9 @@ the **Manage Trips & People** page.
 
 ### Setting this up
 
-1. In Supabase, go to **Authentication → Providers** and make sure **Email**
-   is enabled with magic links.
+1. In Supabase, go to **Authentication → Providers**. Email is on by
+   default. To enable the Google button, see "Google sign-in setup" below —
+   you can skip that at first and everyone uses email links.
 2. Go to **Authentication → URL Configuration** and set the **Site URL** to
    your GitHub Pages address (e.g. `https://ukmdavis.github.io/Amazing-Holiday/`).
    Add the same URL under **Redirect URLs**. Sign-in links won't work
@@ -96,6 +97,30 @@ the **Manage Trips & People** page.
 
 Then just share the site link. Anyone who wants access signs in with their
 email; you approve what they can do.
+
+## Google sign-in setup
+
+The Google button is already on the login page; it needs configuring in
+Supabase once before it works. Free, about 10 minutes.
+
+1. In Supabase go to **Authentication → Providers → Google** and copy the
+   **Callback URL** shown there.
+2. Go to the [Google Cloud Console](https://console.cloud.google.com/) and
+   create a project (any name).
+3. Go to **APIs & Services → OAuth consent screen**, choose **External**,
+   and fill in the basics (app name, your email). You can leave it in
+   "Testing" mode and add your family's Google addresses as test users, or
+   publish it — either works.
+4. Go to **APIs & Services → Credentials → Create credentials → OAuth
+   client ID**, type **Web application**.
+5. Paste the Supabase callback URL from step 1 into **Authorised redirect
+   URIs**.
+6. Copy the resulting **Client ID** and **Client secret** back into
+   Supabase's Google provider settings, and toggle the provider on.
+
+Until this is done the Google button returns an error, but the email
+sign-in link works from the start — so you can deploy first and set Google
+up whenever.
 
 ## Notes on security
 
