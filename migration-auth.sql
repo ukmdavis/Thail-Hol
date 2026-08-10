@@ -1,6 +1,7 @@
 -- ============================================================
 --  MIGRATION: move from passcodes to real Supabase Auth
---  Run ONCE in Supabase: SQL Editor > New query > paste all > Run.
+--  Run in Supabase: SQL Editor > New query > paste all > Run.
+--  Safe to re-run if it fails partway through.
 --
 --  After running, follow the "First organiser" step at the bottom.
 -- ============================================================
@@ -71,12 +72,16 @@ drop policy if exists "public access" on photos;
 alter table profiles enable row level security;
 
 -- Profiles: you can read your own; organisers can read and change all.
+drop policy if exists "read own profile" on profiles;
+drop policy if exists "organiser manages profiles" on profiles;
 create policy "read own profile" on profiles
   for select using (id = auth.uid() or public.is_organiser());
 create policy "organiser manages profiles" on profiles
   for update using (public.is_organiser()) with check (public.is_organiser());
 
 -- Holidays
+drop policy if exists "signed in can read holidays" on holidays;
+drop policy if exists "editors can write holidays" on holidays;
 create policy "signed in can read holidays" on holidays
   for select using (
     auth.uid() is not null
@@ -91,21 +96,29 @@ create policy "editors can write holidays" on holidays
   for all using (public.can_edit()) with check (public.can_edit());
 
 -- Child tables: readable if the parent holiday is visible, writable by editors.
+drop policy if exists "signed in can read flights" on flights;
+drop policy if exists "editors can write flights" on flights;
 create policy "signed in can read flights" on flights
   for select using (auth.uid() is not null and public.holiday_visible(holiday_id));
 create policy "editors can write flights" on flights
   for all using (public.can_edit()) with check (public.can_edit());
 
+drop policy if exists "signed in can read stays" on stays;
+drop policy if exists "editors can write stays" on stays;
 create policy "signed in can read stays" on stays
   for select using (auth.uid() is not null and public.holiday_visible(holiday_id));
 create policy "editors can write stays" on stays
   for all using (public.can_edit()) with check (public.can_edit());
 
+drop policy if exists "signed in can read day_items" on day_items;
+drop policy if exists "editors can write day_items" on day_items;
 create policy "signed in can read day_items" on day_items
   for select using (auth.uid() is not null and public.holiday_visible(holiday_id));
 create policy "editors can write day_items" on day_items
   for all using (public.can_edit()) with check (public.can_edit());
 
+drop policy if exists "signed in can read photos" on photos;
+drop policy if exists "editors can write photos" on photos;
 create policy "signed in can read photos" on photos
   for select using (auth.uid() is not null and public.holiday_visible(holiday_id));
 create policy "editors can write photos" on photos
@@ -116,6 +129,9 @@ drop policy if exists "public upload trip photos" on storage.objects;
 drop policy if exists "public read trip photos" on storage.objects;
 drop policy if exists "public delete trip photos" on storage.objects;
 
+drop policy if exists "signed in read trip photos" on storage.objects;
+drop policy if exists "editors upload trip photos" on storage.objects;
+drop policy if exists "editors delete trip photos" on storage.objects;
 create policy "signed in read trip photos" on storage.objects
   for select using (bucket_id = 'trip-photos' and auth.uid() is not null);
 create policy "editors upload trip photos" on storage.objects
