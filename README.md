@@ -80,7 +80,7 @@ the **Manage Trips & People** page.
 1. In Supabase, go to **Authentication → Providers** and check **Email** is
    enabled. It is by default.
 2. Go to **Authentication → URL Configuration** and set the **Site URL** to
-   your GitHub Pages address (e.g. `https://ukmdavis.github.io/Amazing-Holiday/`).
+   your GitHub Pages address (e.g. `https://ukmdavis.github.io/Thail-Hol/`).
    Add the same URL under **Redirect URLs**. Sign-in links won't work
    without this.
 3. Run `migration-auth.sql` in the SQL Editor.
