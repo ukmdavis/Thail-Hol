@@ -57,15 +57,6 @@ const Auth = {
     return location.origin + location.pathname.replace(/[^/]*$/, "") + "index.html";
   },
 
-  // Sign in with an OAuth provider (currently Google).
-  async signInWithProvider(provider) {
-    const { error } = await supabaseClient.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: this.redirectUrl() },
-    });
-    if (error) throw error;
-  },
-
   async signOut() {
     await supabaseClient.auth.signOut();
     location.href = "login.html";
